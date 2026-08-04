@@ -13,6 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL@24,500,0" />
   <script src="./image-slot.js"></script>
+  <script src="./data-store-inline.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: 'Sora', sans-serif; }
@@ -27,6 +28,13 @@
     input, textarea, select { font-family: 'Sora', sans-serif; }
   </style>
 </helmet>
+
+<sc-if value="{{ bootError }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;background:#0a0b0d;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:9999;text-align:center;padding:24px">
+    <div style="color:#d4af37;font-family:'Playfair Display',serif;font-weight:700;letter-spacing:2px;font-size:15px">PANDA CONSTRUCTION ERP</div>
+    <div style="color:#e6b8b8;font-size:14px;max-width:420px">Couldn't load the app: {{ bootError }}. Try reloading the page.</div>
+  </div>
+</sc-if>
 
 <sc-if value="{{ isBooting }}" hint-placeholder-val="{{ true }}">
   <div style="position:fixed;inset:0;background:#0a0b0d;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;z-index:9999">
@@ -942,13 +950,16 @@ class Component extends DCLogic {
     formTab: {}, editing: {}, drafts: {},
   };
 
-  async componentDidMount() {
-    const mod = await import('./data-store.js');
-    this._store = mod;
-    const db = mod.loadDB();
-    this.setState({ db, booting: false });
-    if (db.sheetsWebAppUrl) {
-      fetch(db.sheetsWebAppUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(db) }).catch(() => {});
+  componentDidMount() {
+    try {
+      this._store = window.__pandaStore;
+      const db = this._store.loadDB();
+      this.setState({ db, booting: false });
+      if (db.sheetsWebAppUrl) {
+        fetch(db.sheetsWebAppUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(db) }).catch(() => {});
+      }
+    } catch (e) {
+      this.setState({ bootError: (e && e.message) || 'Failed to load data store', booting: false });
     }
   }
 
@@ -1197,7 +1208,7 @@ class Component extends DCLogic {
 
   renderVals() {
     const s = this.state;
-    if (!s.db) return { isBooting: true, showLogin: false, showApp: false };
+    if (!s.db) return { isBooting: !s.bootError, bootError: s.bootError || false, showLogin: false, showApp: false };
     const db = s.db, user = s.user, store = this._store;
     const dark = s.theme === 'dark';
     const bgMain = dark ? '#0a0b0d' : '#f6f4ee', sidebarBg = dark ? '#0d0f12' : '#ffffff',
